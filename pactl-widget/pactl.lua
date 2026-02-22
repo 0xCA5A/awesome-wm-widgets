@@ -7,25 +7,21 @@ local pactl = {}
 -- Cached volume/mute state, updated asynchronously via update_async()
 local cache = {}
 
--- Build a pactl argv table. Use lc=true when parsing locale-sensitive output
--- (mute state, device listing) so field names and values stay in English.
-local function pactl_cmd(lc, ...)
-    if lc then
-        return {'env', 'LC_ALL=C', 'pactl', ...}
-    end
-    return {'pactl', ...}
+-- Build a pactl argv table with the C locale forced for consistent output.
+local function pactl_cmd(...)
+    return {'env', 'LC_ALL=C', 'pactl', ...}
 end
 
 function pactl.volume_increase(device, step)
-    spawn(pactl_cmd(false, 'set-sink-volume', device, '+' .. step .. '%'), false)
+    spawn(pactl_cmd('set-sink-volume', device, '+' .. step .. '%'), false)
 end
 
 function pactl.volume_decrease(device, step)
-    spawn(pactl_cmd(false, 'set-sink-volume', device, '-' .. step .. '%'), false)
+    spawn(pactl_cmd('set-sink-volume', device, '-' .. step .. '%'), false)
 end
 
 function pactl.mute_toggle(device)
-    spawn(pactl_cmd(false, 'set-sink-mute', device, 'toggle'), false)
+    spawn(pactl_cmd('set-sink-mute', device, 'toggle'), false)
 end
 
 function pactl.get_volume(device)
@@ -37,7 +33,7 @@ function pactl.get_mute(device)
 end
 
 function pactl.update_async(device, callback)
-    awful.spawn.easy_async(pactl_cmd(false, 'get-sink-volume', device), function(vol_stdout, _, _, vol_exit)
+    awful.spawn.easy_async(pactl_cmd('get-sink-volume', device), function(vol_stdout, _, _, vol_exit)
         if vol_exit ~= 0 then
             cache[device] = nil
             if callback then callback(nil, false) end
@@ -59,7 +55,7 @@ function pactl.update_async(device, callback)
             cache[device].volume = volsum / volcnt
         end
 
-        awful.spawn.easy_async(pactl_cmd(true, 'get-sink-mute', device), function(mute_stdout, _, _, mute_exit)
+        awful.spawn.easy_async(pactl_cmd('get-sink-mute', device), function(mute_stdout, _, _, mute_exit)
             if mute_exit ~= 0 then
                 cache[device] = nil
                 if callback then callback(nil, false) end
@@ -75,9 +71,9 @@ end
 
 function pactl.get_sinks_and_sources()
     local default_sink = utils.trim(utils.popen_and_return(
-        table.concat(pactl_cmd(false, 'get-default-sink'), ' ')))
+        table.concat(pactl_cmd('get-default-sink'), ' ')))
     local default_source = utils.trim(utils.popen_and_return(
-        table.concat(pactl_cmd(false, 'get-default-source'), ' ')))
+        table.concat(pactl_cmd('get-default-source'), ' ')))
 
     local sinks = {}
     local sources = {}
@@ -89,7 +85,7 @@ function pactl.get_sinks_and_sources()
     local in_section
 
     for line in utils.popen_and_return(
-        table.concat(pactl_cmd(true, 'list'), ' ')):gmatch('[^\r\n]*') do
+        table.concat(pactl_cmd('list'), ' ')):gmatch('[^\r\n]*') do
 
         if string.match(line, '^%a+ #') then
             in_section = nil
@@ -149,7 +145,7 @@ function pactl.get_sinks_and_sources()
 end
 
 function pactl.set_default(type, name)
-    spawn(pactl_cmd(false, 'set-default-' .. type, name), false)
+    spawn(pactl_cmd('set-default-' .. type, name), false)
 end
 
 
